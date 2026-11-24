@@ -203,6 +203,33 @@ def f_workday(s):
     return out
 
 
+def f_phenom(s):
+    """Phenom career sites (e.g. Disney Careers, which hosts all ILM / Lucasfilm jobs). id = host|lang|country."""
+    host, lang, country = (s["id"].split("|") + ["en_global", "global"])[:3]
+    terms = list(dict.fromkeys(CONFIG["workday_search_terms"] + s.get("keywords", [])))
+    out, seen = [], set()
+    for term in terms:
+        body = {"lang": lang, "deviceType": "desktop", "country": country, "pageName": "search-results",
+                "ddoKey": "refineSearch", "sortBy": "", "subsearch": "", "from": 0, "jobs": True, "counts": False,
+                "all_fields": [], "size": 50, "clearAll": False, "jdsource": "facets", "isSliderEnable": False,
+                "pageId": "page20", "siteType": "external", "keywords": term, "global": True,
+                "selected_fields": {}, "locationData": {}}
+        try:
+            r = requests.post(f"https://{host}/widgets", json=body,
+                              headers={**UA, "Content-Type": "application/json"}, timeout=TIMEOUT).json()
+        except Exception:
+            continue
+        for j in r.get("refineSearch", {}).get("data", {}).get("jobs", []):
+            jid = j.get("jobId") or j.get("reqId")
+            if not jid or jid in seen:
+                continue
+            seen.add(jid)
+            loc = ", ".join(x for x in [j.get("city"), j.get("country")] if x)
+            out.append(job(s, j.get("title", ""), f"https://{host}/{country}/en/job/{jid}", loc,
+                           j.get("postedDate", ""), extra=j.get("descriptionTeaser", "") or ""))
+    return out
+
+
 def f_jobvite(s):
     page = get(f"https://jobs.jobvite.com/{s['id']}/jobs").text
     out = []
