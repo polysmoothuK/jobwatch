@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+# private: only the encrypted vault.enc is published
+config.json
+sources/
+data/
+dashboard/
+.vault-key

@@ -1,0 +1,42 @@
+name: JobWatch
+
+on:
+  schedule:
+    # every 2 hours between 06:00 and 22:00 UTC (07:00-23:00 UK winter time)
+    - cron: "0 6-22/2 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jobwatch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      JOBWATCH_KEY: ${{ secrets.JOBWATCH_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Decrypt private files
+        run: bash vault.sh unlock
+      - name: Run watcher
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python watcher.py && python make_index.py
+      - name: Encrypt and save state
+        run: |
+          bash vault.sh lock
+          git config user.name "jobwatch-bot"
+          git config user.email "jobwatch-bot@users.noreply.github.com"
+          git add vault.enc
+          git diff --cached --quiet || git commit -m "jobwatch: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
