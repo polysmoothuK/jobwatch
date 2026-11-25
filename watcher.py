@@ -191,7 +191,8 @@ def f_workday(s):
     tenant, wd, site = s["id"].split("|")
     url = f"https://{tenant}.{wd}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs"
     out = []
-    for term in CONFIG["workday_search_terms"]:
+    terms = CONFIG.get("workday_search_terms_it", []) if s.get("track") == "it" else CONFIG["workday_search_terms"]
+    for term in list(dict.fromkeys(terms + s.get("keywords", []))):
         try:
             r = requests.post(url, json={"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": term},
                               headers={**UA, "Content-Type": "application/json"}, timeout=TIMEOUT).json()
